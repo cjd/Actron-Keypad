@@ -5,7 +5,7 @@ esphome:
     - led_proto2.h
 
 esp32:
-  board: m5stack-core-esp32
+  board: esp32doit-devkit-v1
   framework:
     type: arduino
 
@@ -35,13 +35,11 @@ captive_portal:
 web_server:
   port: 80
 
-
-
 #Setup i2c bus to controll MCP4725
 #https://esphome.io/components/i2c#i2c
 i2c:
-  sda: 25
-  scl: 21
+  sda: 21
+  scl: 22
   scan: true
 
 #MCP4725 output to Send Voltages for key presses 
@@ -49,137 +47,197 @@ i2c:
 output:
   - platform: mcp4725
     id: dac_output
-    address: 0x62
+    address: 0x60
 
 
 ##***TESTING***
 # Define a number input component to output mV to the DAC
 number:
   - platform: template
-    name: "DAC Output miliVolts"
+    name: "DAC Output milliVolts"
     min_value: 0
     max_value: 5000  # Adjust this value according to the DAC's range
     step: 1    # Adjust the step size as needed
-    restore_value: true
+    restore_value: False
+    initial_value: 0
     optimistic: true
     on_value:
       then:
         lambda: |-
           id(dac_output).set_level((x / 5000.0));
-###############################################################
 
+globals:
+  - id: dac_value
+    type: double
+  - id: prev_fan
+    type: std::string
+    initial_value: '"Unset"'
 
 button:
   - platform: template
-    name: "Power"
+    name: "Press"
+    id: press_button
+    internal: true
     icon: mdi:power
     on_press:
-      - logger.log: Power Button Pressed
+      - logger.log: Button Pressed
       - lambda: |-
-          id(dac_output).set_level((5000.0 / 5000.0));
-      - delay: 800ms
-      - lambda: |-
-          id(dac_output).set_level((0.0 / 5000.0));
-
-  - platform: template
-    name: "Fan"
-    icon: mdi:fan
-    on_press:
-      - logger.log: Fan Button Pressed
-      - lambda: |-
-          id(dac_output).set_level((718.0 / 5000.0));
-      - delay: 800ms
+          id(dac_output).set_level((id(dac_value) / 5000.0));
+      - delay: 500ms
       - lambda: |-
           id(dac_output).set_level((0.0 / 5000.0));
+      - delay: 500ms
 
   - platform: template
     name: "Temp Up"
     icon: mdi:thermometer-plus
     on_press:
-      - logger.log: Temp Up Button Pressed
       - lambda: |-
-          id(dac_output).set_level((835.0/ 5000.0));
-      - delay: 800ms
-      - lambda: |-
-          id(dac_output).set_level((0.0 / 5000.0));
+          id(dac_value)=884.0;
+          id(press_button).press();
 
   - platform: template
     name: "Temp Down"
     icon: mdi:thermometer-minus
     on_press:
-      - logger.log: Temp Down Button Pressed
       - lambda: |-
-          id(dac_output).set_level((741.0/ 5000.0));
-      - delay: 800ms
-      - lambda: |-
-          id(dac_output).set_level((0.0 / 5000.0));
-
+          id(dac_value)=769.0;
+          id(press_button).press();
 
   - platform: template
     name: "Mode"
     icon: mdi:air-conditioner
     on_press:
-      - logger.log: Mode Button Pressed
       - lambda: |-
-          id(dac_output).set_level((908.0/ 5000.0));
-      - delay: 800ms
-      - lambda: |-
-          id(dac_output).set_level((0.0 / 5000.0));
+          id(dac_value)=943.0;
+          id(press_button).press();
 
   - platform: template
-    name: "Timer"
-    icon: mdi:timer
+    name: "Fan"
+    icon: mdi:fan
     on_press:
-      - logger.log: Timer Button Pressed
       - lambda: |-
-          id(dac_output).set_level((810.0/ 5000.0));
-      - delay: 800ms
+          id(dac_value)=740.0;
+          id(press_button).press();
+
+switch:
+  - platform: template
+    name: Power
+    icon: mdi:power
+    id: power
+    turn_on_action:
       - lambda: |-
-          id(dac_output).set_level((0.0 / 5000.0));
+          id(dac_value)=5000.0;
+          id(press_button).press();
+    turn_off_action:
+      - lambda: |-
+          id(dac_value)=5000.0;
+          id(press_button).press();
+    lambda: |-
+      return (id(cool).state or id(auto_md).state or id(heat).state or id(fan_cont).state or id(fan_hi).state or id(fan_mid).state or id(fan_low).state);
 
   - platform: template
-    name: "Timer Up"
-    icon: mdi:timer-plus
-    on_press:
-      - logger.log: Timer Up Button Pressed
+    name: "Zone 1"
+    id: zone1
+    icon: mdi:air-conditioner
+    turn_on_action:
       - lambda: |-
-          id(dac_output).set_level((778.0/ 5000.0));
-      - delay: 800ms
+          id(dac_value)=715.0;
+          id(press_button).press();
+    turn_off_action:
       - lambda: |-
-          id(dac_output).set_level((0.0 / 5000.0));
+          id(dac_value)=715.0;
+          id(press_button).press();
+    lambda: return id(room1).state;
 
   - platform: template
-    name: "Timer Down"
-    icon: mdi:timer-minus
-    on_press:
-      - logger.log: Timer Down Button Pressed
+    name: "Zone 2"
+    id: zone2
+    icon: mdi:air-conditioner
+    turn_on_action:
       - lambda: |-
-          id(dac_output).set_level((763.0/ 5000.0));
-      - delay: 800ms
+          id(dac_value)=657.0;
+          id(press_button).press();
+    turn_off_action:
       - lambda: |-
-          id(dac_output).set_level((0.0 / 5000.0));
+          id(dac_value)=657.0;
+          id(press_button).press();
+    lambda: return id(room2).state;
 
+  - platform: template
+    name: "Zone 3"
+    id: zone3
+    icon: mdi:air-conditioner
+    turn_on_action:
+      - lambda: |-
+          id(dac_value)=692.0;
+          id(press_button).press();
+    turn_off_action:
+      - lambda: |-
+          id(dac_value)=692.0;
+          id(press_button).press();
+    lambda: return id(room3).state;
+
+  - platform: template
+    name: "Zone 4"
+    icon: mdi:air-conditioner
+    id: zone4
+    turn_on_action:
+      - lambda: |-
+          id(dac_value)=605.0;
+          id(press_button).press();
+    turn_off_action:
+      - lambda: |-
+          id(dac_value)=605.0;
+          id(press_button).press();
+    lambda: return id(room4).state;
 
 #Template sensors will be populated from lambda custom component
 sensor:
   - platform: template
     name: "Setpoint Temperature"
-    unit_of_measurement: "°C" 
-    accuracy_decimals: 1     
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
     id: setpoint_temp
     state_class: measurement
     icon: mdi:thermometer
-  
+
   - platform: template
     name: "Bit Count"
     id: bit_count
     state_class: measurement
     accuracy_decimals: 0
-    
+
 text_sensor:
   - platform: template
     name: "Bit String"
     id: bit_string
+    internal: true
+  - platform: template
+    name: "Fan Mode"
+    update_interval: 1s
+    lambda: |-
+      std::string current_fan = "";
+      if (id(fan_hi).state and !id(fan_cont).state) {
+        current_fan="High";
+      } else if (id(fan_mid).state and !id(fan_cont).state) {
+        current_fan="Medium";
+      } else if (id(fan_low).state and !id(fan_cont).state) {
+        current_fan="Low";
+      } else if (id(fan_hi).state and id(fan_cont).state) {
+        current_fan="High Cont";
+      } else if (id(fan_mid).state and id(fan_cont).state) {
+        current_fan="Medium Cont";
+      } else if (id(fan_low).state and id(fan_cont).state) {
+        current_fan="Low Cont";
+      } else {
+        current_fan="Off";
+      }
+      if (current_fan.compare(id(prev_fan)) != 0) {
+        id(prev_fan) = current_fan;
+        return {current_fan};
+      }
+      return {};
 
 binary_sensor:
   - platform: template
@@ -191,26 +249,15 @@ binary_sensor:
     icon: mdi:flash-auto
     id: auto_md
   - platform: template
-    name: "unk1"
-    id: unk1
-  - platform: template
     name: "Run"
     icon: mdi:run
     id: run
   - platform: template
     name: "Room"
     id: room
+    internal: True
   - platform: template
-    name: "unk2"
-    id: unk2
-  - platform: template
-    name: "unk3"
-    id: unk3
-  - platform: template
-    name: "unk4"
-    id: unk4
-  - platform: template
-    name: "Fan Continuos"
+    name: "Fan Continuous"
     icon: mdi:fan-chevron-up
     id: fan_cont
   - platform: template
@@ -226,35 +273,56 @@ binary_sensor:
     icon: mdi:fan-speed-1
     id: fan_low
   - platform: template
-    name: "Room3"
+    name: "Zone 3"
     id: room3
+    internal: True
   - platform: template
-    name: "Room4"
+    name: "Zone 4"
     id: room4
+    internal: True
   - platform: template
-    name: "Room2"
+    name: "Zone 2"
     id: room2
+    internal: True
   - platform: template
     name: "Heat"
     icon: mdi:fire
     id: heat
   - platform: template
-    name: "Room1"
+    name: "Zone 1"
     id: room1
+    internal: True
+  - platform: template
+    name: "unk1"
+    id: unk1
+    internal: True
+  - platform: template
+    name: "unk2"
+    id: unk2
+    internal: True
+  - platform: template
+    name: "unk3"
+    id: unk3
+    internal: True
+  - platform: template
+    name: "unk4"
+    id: unk4
+    internal: True
   - platform: template
     name: "unk5"
     id: unk5
+    internal: True
 
 #Populate all template sensors from lambda custom component
 #First argument of KeypadStatus is the pin number of the ADC input
 custom_component:
   - lambda: |-
       auto keypad_status = new KeypadStatus(33,
-                                            id(bit_string), id(setpoint_temp), id(bit_count),  
-                                            id(cool), id(auto_md), id(unk1), id(run), 
-                                            id(room), id(unk2), id(unk3), id(unk4), 
-                                            id(fan_cont), id(fan_hi), id(fan_mid), id(fan_low), 
-                                            id(room3), id(room4), id(room2), id(heat), 
+                                            id(bit_string), id(setpoint_temp), id(bit_count),
+                                            id(cool), id(auto_md), id(unk1), id(run),
+                                            id(room), id(unk2), id(unk3), id(unk4),
+                                            id(fan_cont), id(fan_hi), id(fan_mid), id(fan_low),
+                                            id(room3), id(room4), id(room2), id(heat),
                                             id(room1), id(unk5)
                                             );
       return {keypad_status};
